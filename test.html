@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+</head>
+<body>
+  <button onclick="create()">create</button>
+  <div>
+    <input type="text" id="roomName" onkeyup="updateRoom()">
+    <button onclick="join()">join</button>
+  </div>
+  <h2>Timer <span id="timer"></span></h2>
+  <div>
+    <button onclick="sendMove()">Move</button>
+    <button onclick="ready()">Ready</button>
+  </div>
+  <script src="https://cdn.socket.io/socket.io-3.0.1.min.js"></script>
+  <script>
+    const socket = io('http://localhost:9000');
+let roomName = '';
+
+socket.on('timerCount', time => {
+  document.querySelector('#timer').innerHTML = time;
+});
+socket.on('timerOut', () => {
+  document.querySelector('#timer').innerHTML = 'Time Out!';
+});
+
+socket.on('actionStack', actions => {
+  console.log(actions);
+});
+socket.on('return:roomId', roomId => {
+  alert(roomId);
+});
+socket.on('error', msg => {
+  alert(msg);
+});
+socket.on('win', () => {
+  alert('You won');
+  socket.emit('leaveGame');
+})
+
+    function create() {
+      socket.emit('create');
+    }
+    function join() {
+      socket.emit('join', roomName);
+    }
+    function sendMove() {
+      socket.emit('registerMove', 'move');
+    }
+function ready() {
+  socket.emit('ready');
+}
+
+  function updateRoom() {
+    roomName = document.querySelector('#roomName').value;
+    console.log(roomName);
+  }
+  </script>
+</body>
+</html>
