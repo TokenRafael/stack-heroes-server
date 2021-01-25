@@ -4,15 +4,13 @@ const app = require('express')();
 import { Request, Response } from 'express';
 import cors from 'cors';
 const http = require('http').createServer(app);
-const io: SocketIO.Server = require('socket.io')(
-  http,
-  {
-    cors: {
-      origin: cors_url,
-      methods: ['GET', 'POST'],
-      credentials: true
-    }
-  });
+const io: SocketIO.Server = require('socket.io')(http, {
+  cors: {
+    origin: cors_url,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
 
 // CORS config
 app.use(cors());
@@ -20,6 +18,7 @@ app.use(cors());
 // Project imports
 import { gameHandler, getRoomName } from './src/gameHandler';
 import { Move } from './src/models/move';
+import { Hero } from './src/models/hero';
 
 // Testing page
 app.get('/', (req: Request, res: Response) => {
@@ -28,15 +27,18 @@ app.get('/', (req: Request, res: Response) => {
 
 // Handle socket
 io.on('connection', (socket: SocketIO.Socket) => {
+  console.log(`User ${socket.id} Connected`);
 
-  console.log(`User ${ socket.id } Connected`);
-
-  socket.on('create', ()=>gameHandler.createGame(io, socket));
-  socket.on('join', (roomId: string)=>{
-    gameHandler.joinGame(io, roomId, socket);
+  socket.on('create', (team: Hero[]) =>
+    gameHandler.createGame(io, socket, team)
+  );
+  socket.on('join', (roomId: string, team: Hero[]) => {
+    gameHandler.joinGame(io, roomId, socket, team);
   });
-  socket.on('registerMove', (move: Move, target: number)=>gameHandler.stackMove(io, socket, move, target));
-  socket.on('ready', ()=>gameHandler.readyPlayer(io, socket))
+  socket.on('registerMove', (move: Move, sender: number, target: number) =>
+    gameHandler.stackMove(io, socket, move, sender, target)
+  );
+  socket.on('ready', () => gameHandler.readyPlayer(io, socket));
 
   socket.on('leaveGame', () => {
     const room = getRoomName(socket);
@@ -48,8 +50,8 @@ io.on('connection', (socket: SocketIO.Socket) => {
     socket.to(room).emit('win');
   });
   socket.on('disconnect', () => {
-    console.log(`User ${ socket.id } disconnected`);
-  })
+    console.log(`User ${socket.id} disconnected`);
+  });
 });
 
 // Starting server by listening
