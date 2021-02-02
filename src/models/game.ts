@@ -1,6 +1,7 @@
-import { Hero } from "./hero";
-import { Move } from "./move";
-import { Timer } from "./timer";
+import { Hero } from './hero';
+import { Move } from './move';
+import { Timer } from './timer';
+import { EventEmitter } from 'events';
 
 interface Action {
   move: Move;
@@ -10,8 +11,8 @@ interface Action {
 }
 
 export class Game {
-
   gameTimer: Timer;
+  timerOutEvent = new EventEmitter();
   moveStack: Action[] = [];
 
   p1moves = 0;
@@ -22,24 +23,25 @@ export class Game {
   p2: SocketIO.Socket;
   p2Team: Hero[];
 
-  constructor (
+  constructor(
     public io: SocketIO.Server,
     public roomName: string,
     public p1: SocketIO.Socket,
     public p1Team: Hero[]
   ) {
-    this.gameTimer = new Timer(io, roomName);
+    this.gameTimer = new Timer(io, roomName, this.timerOutEvent);
     this.p1ready = true;
+    this.timerOutEvent.on('timeout', () => this.completeRound())
   }
 
   registerPlayer(p: SocketIO.Socket, team: Hero[]) {
-      this.p2 = p
-      this.p2Team = team;
-      p.join(this.roomName);
-      this.p2ready = true;
-      this.p1.to(this.roomName).emit('startGame', this.p1Team);
-      this.p2.to(this.roomName).emit('startGame', this.p2Team);
-      this.gameTimer.start();
+    this.p2 = p;
+    this.p2Team = team;
+    p.join(this.roomName);
+    this.p2ready = true;
+    this.p1.to(this.roomName).emit('startGame', this.p1Team);
+    this.p2.to(this.roomName).emit('startGame', this.p2Team);
+    this.gameTimer.start();
   }
 
   playersReady(): boolean {
@@ -69,35 +71,31 @@ export class Game {
         if (this.p1moves === 3) {
           p.emit('error', 'No more moves available to you');
           return;
-        } else
-          this.p1moves++;
+        } else this.p1moves++;
       }
       if (p === this.p2) {
         player = 'p2';
         if (this.p2moves === 3) {
           p.emit('error', 'No more moves available to you');
           return;
-        } else
-          this.p2moves++;
+        } else this.p2moves++;
       }
       this.moveStack.push({
         move: m,
         player: player,
         sender: sender,
-        target: target
+        target: target,
       });
       if (this.moveStack.length === 6) this.completeRound();
       console.log(this.moveStack);
-    } else
-        p.emit('error', 'Waiting for all players to be ready');
+    } else p.emit('error', 'Waiting for all players to be ready');
   }
 
   completeRound(): void {
     this.io.to(this.roomName).emit('actionStack', this.moveStack);
     this.moveStack = [];
+    this.p1moves = this.p2moves = 0;
     this.p1ready = this.p2ready = false;
     this.gameTimer.stop();
   }
-
-
 }
