@@ -39,6 +39,11 @@ io.on('connection', (socket: SocketIO.Socket) => {
     gameHandler.stackMove(io, socket, move, sender, target)
   );
   socket.on('ready', () => gameHandler.readyPlayer(io, socket));
+  socket.on('lost', () => {
+    const room = getRoomName(socket);
+    socket.to(room).emit('win');
+    socket.emit('lose')
+  })
 
   socket.on('leaveGame', () => {
     const room = getRoomName(socket);
