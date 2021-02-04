@@ -1,4 +1,6 @@
-const cors_url = 'http://localhost:4200';
+import { config as dotconf } from 'dotenv'
+dotconf();
+const cors_url = process.env.CORS_URL;
 // Setting up and imports for express socket.io and server
 const app = require('express')();
 import { Request, Response } from 'express';
